@@ -1,20 +1,22 @@
-import utils
-import config
 import search
 import app_steam_launcher
 import app_os_tweak
+import locksmith
+import ejector
 
-apps = [("Steam Launcher", app_steam_launcher.launch_game)]
+apps = [
+    ("Steam Launcher", app_steam_launcher.launch_game),
+    ("Menu Icons (Tahoe)", app_os_tweak.main),
+    ("File Locksmith", locksmith.main),
+    ("Clean & Eject Drive", ejector.main),
+]
 
-options=[]
+items = [{"label": name, "type": search.ITEM_BUTTON} for name, _ in apps]
 
-for item in apps:
-    options.append("{0}".format(item[0]))
+result = search.select(items, title="Toolbox")
+print("Selected:", result["index"] if result else None)
 
-choice = search.fuzzy_select(options)
-print("Selected:", choice)
-
-if choice == None:
+if result is None:
     exit(0)
 
-apps[choice][1]()
+apps[result["index"]][1]()

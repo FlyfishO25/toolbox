@@ -59,18 +59,15 @@ def launch_crossover_game(game_id: int):
 
 def launch_game():
     # build options
-    options=[]
+    items = [{"label": f"{g[0]} ({g[2]})", "type": search.ITEM_BUTTON}
+             for g in steam_games]
 
-    for item in steam_games:
-        options.append("{0}({1})".format(item[0], item[2]))
-
-    print(options)
-
-    choice = search.fuzzy_select(options)
-    print("Selected:", choice)
-    if choice == None:
+    result = search.select(items, title="Steam Launcher")
+    print("Selected:", result["index"] if result else None)
+    if result is None:
         return
 
+    choice = result["index"]
     if steam_games[choice][2] == 'macOS':
         launch_mac_game(steam_games[choice][1])
     else:
