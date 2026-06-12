@@ -1,0 +1,8 @@
+{
+  "steamapps_paths_macos": [
+    "~/Library/Application Support/Steam/steamapps"
+  ],
+  "steamapps_paths_crossover": [
+    "~/Library/Application Support/CrossOver/Bottles/Steam/drive_c/Program Files (x86)/Steam/steamapps"
+  ]
+}
