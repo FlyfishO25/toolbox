@@ -158,5 +158,6 @@
     "com.apple.VoiceMemos": true,
     "com.apple.weather": true,
     "com.apple.ScreenContinuity": true
-  }
+  },
+  "tahoe_global": false
 }

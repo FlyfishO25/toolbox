@@ -16,6 +16,15 @@ steam_paths_macos = config.get_steam_paths_macos()
 steam_paths_crossover = config.get_steam_paths_crossover()
 steam_games = utils.list_steam_games(steam_paths_macos, steam_paths_crossover)
 
+STEAM_TABS = [
+    ("Steam: Main (CrossOver)", "steam://open/main"),
+    ("Steam: Store (CrossOver)", "steam://open/store"),
+    ("Steam: Library (CrossOver)", "steam://open/games"),
+    ("Steam: Friends (CrossOver)", "steam://open/friends"),
+    ("Steam: Downloads (CrossOver)", "steam://open/downloads"),
+    ("Steam: Settings (CrossOver)", "steam://open/settings"),
+]
+
 # ── CrossOver config ───────────────────────────────────────────────────────────
 CROSSOVER_SCRIPT_TEMPLATE = """\
 #!/bin/bash
@@ -32,19 +41,24 @@ export http_proxy="http://127.0.0.1:7897/"
 export CX_BOTTLE="Steam"
 export PATH="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin:$PATH"
 cd "$HOME/Library/Application Support/CrossOver/Bottles/Steam/drive_c/Program Files (x86)/Steam"
-wine --cx-app steam.exe "steam://rungameid/{game_id}"
+wine --cx-app steam.exe "{steam_url}"
 """
 
 
-def launch_mac_game(game_id: int):
+def launch_mac_url(url: str):
     subprocess.Popen(
-        ["open", f"steam://rungameid/{game_id}"],
+        ["open", url],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
 
-def launch_crossover_game(game_id: int):
-    script = CROSSOVER_SCRIPT_TEMPLATE.format(game_id=game_id)
+
+def launch_mac_game(game_id: int):
+    launch_mac_url(f"steam://rungameid/{game_id}")
+
+
+def launch_crossover_url(steam_url: str):
+    script = CROSSOVER_SCRIPT_TEMPLATE.format(steam_url=steam_url)
     tmp = tempfile.NamedTemporaryFile(
         suffix=".sh", delete=False, mode="w", prefix="toolbox-steam-"
     )
@@ -57,10 +71,20 @@ def launch_crossover_game(game_id: int):
         stderr=subprocess.DEVNULL,
     )
 
+
+def launch_crossover_game(game_id: int):
+    launch_crossover_url(f"steam://rungameid/{game_id}")
+
+
 def launch_game():
-    # build options
-    items = [{"label": f"{g[0]} ({g[2]})", "type": search.ITEM_BUTTON}
-             for g in steam_games]
+    items = [
+        {"label": label, "type": search.ITEM_BUTTON}
+        for label, _ in STEAM_TABS
+    ]
+    items.extend(
+        {"label": f"{g[0]} ({g[2]})", "type": search.ITEM_BUTTON}
+        for g in steam_games
+    )
 
     result = search.select(items, title="Steam Launcher")
     print("Selected:", result["index"] if result else None)
@@ -68,8 +92,12 @@ def launch_game():
         return
 
     choice = result["index"]
-    if steam_games[choice][2] == 'macOS':
-        launch_mac_game(steam_games[choice][1])
-    else:
-        launch_crossover_game(steam_games[choice][1])
+    if choice < len(STEAM_TABS):
+        launch_crossover_url(STEAM_TABS[choice][1])
+        return
 
+    game = steam_games[choice - len(STEAM_TABS)]
+    if game[2] == 'macOS':
+        launch_mac_game(game[1])
+    else:
+        launch_crossover_game(game[1])

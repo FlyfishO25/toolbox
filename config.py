@@ -1,7 +1,8 @@
 import json
+import os
 from pathlib import Path
 
-CONFIG_FILE = Path("config.json")
+CONFIG_FILE = Path(os.environ.get("TOOLBOX_CONFIG_FILE", "config.json"))
 
 DEFAULTS = {
     "steamapps_paths_macos": [

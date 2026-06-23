@@ -5,10 +5,19 @@ A terminal-based toolbox for macOS. Launches a curses TUI where you fuzzy-search
 ## Apps
 
 ### Steam Launcher
-Fuzzy-search your Steam library and launch games natively (macOS) or via CrossOver/Wine. Reads game metadata from `appmanifest_*.acf` files in configured Steam library paths.
+Open common Steam tabs such as Store, Library, Friends, Downloads, Settings,
+and Console, or fuzzy-search your Steam library and launch games natively
+(macOS) or via CrossOver/Wine. Reads game metadata from `appmanifest_*.acf`
+files in configured Steam library paths.
 
-### Menu Icons (Tahoe)
+### Menu Icons (Tahoe) [Deprecated]
 Toggle menu action images globally (`defaults write -g`) or per app. Scans /Applications, /System/Applications, and ~/Applications for installed apps. Changes are saved to `config.json` and applied in parallel with a spinner.
+
+### Fix Apps
+Repair downloaded or modified apps by removing the quarantine extended
+attribute (`xattr -d -r com.apple.quarantine`) or ad-hoc code signing
+(`codesign --force --deep --sign -`). The path prompt accepts dragged files or
+apps from Finder, and sudo is used only when the target is not writable.
 
 ### File Locksmith
 Check which process is locking a file (preventing deletion). Runs `lsof` on the given path and displays the command, PID, and user of each locking process.
@@ -50,3 +59,18 @@ python3 toolbox.py
 ```
 
 Requires Python 3 with curses (built-in). macOS only.
+
+## macOS App Bundle
+
+Build a Finder-launchable app bundle:
+
+```bash
+python3 build_macos_app.py
+```
+
+The generated app is written to `dist/Toolbox.app`. Because Toolbox uses a
+terminal UI, launching the app opens Terminal, runs the bundled Python sources
+there, and closes that Terminal window when Toolbox exits successfully. If
+Toolbox exits with an error, the window stays open so the traceback is visible.
+The app stores its writable config at
+`~/Library/Application Support/Toolbox/config.json`.

@@ -1,0 +1,151 @@
+import os
+import plistlib
+import shutil
+from pathlib import Path
+
+
+APP_NAME = "Toolbox"
+BUNDLE_ID = "dev.markzhou.toolbox"
+
+ROOT = Path(__file__).resolve().parent
+DIST_DIR = ROOT / "dist"
+APP_DIR = DIST_DIR / f"{APP_NAME}.app"
+CONTENTS_DIR = APP_DIR / "Contents"
+MACOS_DIR = CONTENTS_DIR / "MacOS"
+RESOURCES_DIR = CONTENTS_DIR / "Resources"
+APP_RESOURCES_DIR = RESOURCES_DIR / "app"
+
+SOURCE_FILES = [
+    "app_fix_apps.py",
+    "app_os_tweak.py",
+    "app_steam_launcher.py",
+    "config.py",
+    "config.json",
+    "ejector.py",
+    "locksmith.py",
+    "search.py",
+    "toolbox.py",
+    "utils.py",
+]
+
+
+LAUNCHER = """#!/bin/bash
+set -e
+
+CONTENTS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+RUNNER="$CONTENTS_DIR/Resources/run_toolbox.sh"
+
+/usr/bin/osascript - "$RUNNER" <<'APPLESCRIPT'
+on run argv
+    set runner to item 1 of argv
+    set launchCommand to "/bin/bash " & quoted form of runner
+
+    tell application "Terminal"
+        activate
+        set toolboxTab to do script launchCommand
+        set clean commands of toolboxTab to {"bash", "sh", "zsh", "login", "python3", "osascript"}
+        set custom title of toolboxTab to "Toolbox"
+        set title displays custom title of toolboxTab to true
+    end tell
+end run
+APPLESCRIPT
+"""
+
+
+RUNNER = """#!/bin/bash
+
+TTY_PATH="$(tty)"
+RESOURCES_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DIR="$RESOURCES_DIR/app"
+CONFIG_DIR="$HOME/Library/Application Support/Toolbox"
+CONFIG_FILE="$CONFIG_DIR/config.json"
+
+mkdir -p "$CONFIG_DIR"
+if [ ! -f "$CONFIG_FILE" ] && [ -f "$APP_DIR/config.json" ]; then
+    cp "$APP_DIR/config.json" "$CONFIG_FILE"
+fi
+
+cd "$APP_DIR"
+TOOLBOX_CONFIG_FILE="$CONFIG_FILE" /usr/bin/python3 toolbox.py
+status=$?
+
+if [ "$status" -ne 0 ]; then
+    printf "\\nToolbox exited with status %s. Press Return to close..." "$status"
+    read
+    exit "$status"
+fi
+
+/usr/bin/osascript - "$TTY_PATH" <<'APPLESCRIPT'
+on run argv
+    set targetTTY to item 1 of argv
+
+    tell application "Terminal"
+        repeat with terminalWindow in windows
+            repeat with terminalTab in tabs of terminalWindow
+                if tty of terminalTab is targetTTY then
+                    close terminalWindow saving no
+                    return
+                end if
+            end repeat
+        end repeat
+    end tell
+end run
+APPLESCRIPT
+"""
+
+
+def build_info_plist():
+    return {
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleDisplayName": APP_NAME,
+        "CFBundleExecutable": APP_NAME,
+        "CFBundleIdentifier": BUNDLE_ID,
+        "CFBundleInfoDictionaryVersion": "6.0",
+        "CFBundleName": APP_NAME,
+        "CFBundlePackageType": "APPL",
+        "CFBundleShortVersionString": "1.0",
+        "CFBundleVersion": "1",
+        "LSMinimumSystemVersion": "10.15",
+        "NSAppleEventsUsageDescription": (
+            "Toolbox opens Terminal to run its text-based interface."
+        ),
+        "NSHighResolutionCapable": True,
+    }
+
+
+def copy_sources():
+    APP_RESOURCES_DIR.mkdir(parents=True, exist_ok=True)
+    for filename in SOURCE_FILES:
+        shutil.copy2(ROOT / filename, APP_RESOURCES_DIR / filename)
+
+
+def write_bundle_files():
+    MACOS_DIR.mkdir(parents=True, exist_ok=True)
+    RESOURCES_DIR.mkdir(parents=True, exist_ok=True)
+
+    launcher_path = MACOS_DIR / APP_NAME
+    launcher_path.write_text(LAUNCHER)
+    launcher_path.chmod(0o755)
+
+    runner_path = RESOURCES_DIR / "run_toolbox.sh"
+    runner_path.write_text(RUNNER)
+    runner_path.chmod(0o755)
+
+    with open(CONTENTS_DIR / "Info.plist", "wb") as plist_file:
+        plistlib.dump(build_info_plist(), plist_file)
+
+    (CONTENTS_DIR / "PkgInfo").write_text("APPL????")
+
+
+def main():
+    if APP_DIR.exists():
+        shutil.rmtree(APP_DIR)
+
+    copy_sources()
+    write_bundle_files()
+
+    print(f"Built {APP_DIR}")
+
+
+if __name__ == "__main__":
+    main()

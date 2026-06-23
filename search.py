@@ -81,6 +81,21 @@ def _filter(query, items):
     return results
 
 
+def _toggle(items, types, states, index):
+    """Toggle one item and recalculate states controlled by a global toggle."""
+    new_state = not states[index]
+    states[index] = new_state
+
+    if not items[index].get("global"):
+        return
+
+    for child_index, child in enumerate(items):
+        if child_index == index or types[child_index] != ITEM_TOGGLE:
+            continue
+        override = child.get("global_override")
+        states[child_index] = new_state if override is None else bool(override)
+
+
 # ── unified select widget ──────────────────────────────────────────────────────
 
 def select(items, title="", search=True):
@@ -90,6 +105,8 @@ def select(items, title="", search=True):
         "label" (str)
         "type"  (ITEM_TOGGLE | ITEM_BUTTON | ITEM_NEXT)
         "state" (bool, for toggles only)
+        "global" (bool, marks a toggle as the global controller)
+        "global_override" (bool | None, fixed child state during global changes)
 
     Returns dict{"index": int, "states": list[bool]} or None on ESC.
     """
@@ -206,7 +223,7 @@ def select(items, title="", search=True):
             elif key == ord(" "):  # Space
                 orig, _, _ = matches[sel]
                 if types[orig] == ITEM_TOGGLE:
-                    states[orig] = not states[orig]
+                    _toggle(items, types, states, orig)
 
             elif key in (curses.KEY_BACKSPACE, 127, 8):
                 query = query[:-1]
@@ -287,5 +304,4 @@ def show_progress(items, title="Progress", callback=None):
         curses.napms(500)
 
     curses.wrapper(_run)
-
 
