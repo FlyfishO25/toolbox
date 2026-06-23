@@ -5,3 +5,4 @@
 /.claude
 AGENTS.md
 /apps/__pycache__
+/app/__pycache__

@@ -1,24 +1,30 @@
-import search
-import app_steam_launcher
-# import app_os_tweak
-import app_fix_apps
-import locksmith
-import ejector
+import ui
+from app import ejector, fix_apps, locksmith, steam_launcher
+# from app import os_tweak
 
 apps = [
-    ("Steam Launcher", app_steam_launcher.launch_game),
-    # ("Menu Icons (Tahoe)", app_os_tweak.main),
-    ("Fix Apps", app_fix_apps.main),
+    ("Steam Launcher", steam_launcher.launch_game),
+    # ("Menu Icons (Tahoe)", os_tweak.main),
+    ("Fix Apps", fix_apps.main),
     ("File Locksmith", locksmith.main),
     ("Clean & Eject Drive", ejector.main),
 ]
 
-items = [{"label": name, "type": search.ITEM_BUTTON} for name, _ in apps]
+def main():
+    items = [{"label": name, "type": ui.ITEM_BUTTON} for name, _ in apps]
 
-result = search.select(items, title="Toolbox")
-print("Selected:", result["index"] if result else None)
+    def menu_loop():
+        while True:
+            result = ui.select(items, title="home", back_label="quit")
+            if result is None:
+                return
+            apps[result["index"]][1]()
 
-if result is None:
-    exit(0)
+    try:
+        ui.run(menu_loop)
+    except ui.QuitRequested:
+        return
 
-apps[result["index"]][1]()
+
+if __name__ == "__main__":
+    main()

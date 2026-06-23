@@ -16,14 +16,9 @@ RESOURCES_DIR = CONTENTS_DIR / "Resources"
 APP_RESOURCES_DIR = RESOURCES_DIR / "app"
 
 SOURCE_FILES = [
-    "app_fix_apps.py",
-    "app_os_tweak.py",
-    "app_steam_launcher.py",
     "config.py",
     "config.json",
-    "ejector.py",
-    "locksmith.py",
-    "search.py",
+    "ui.py",
     "toolbox.py",
     "utils.py",
 ]
@@ -117,6 +112,11 @@ def copy_sources():
     APP_RESOURCES_DIR.mkdir(parents=True, exist_ok=True)
     for filename in SOURCE_FILES:
         shutil.copy2(ROOT / filename, APP_RESOURCES_DIR / filename)
+    shutil.copytree(
+        ROOT / "app",
+        APP_RESOURCES_DIR / "app",
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
 
 
 def write_bundle_files():

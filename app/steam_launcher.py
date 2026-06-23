@@ -8,7 +8,7 @@ import stat
 import tempfile
 import subprocess
 import config
-import search
+import ui
 import utils
 
 # init
@@ -78,16 +78,15 @@ def launch_crossover_game(game_id: int):
 
 def launch_game():
     items = [
-        {"label": label, "type": search.ITEM_BUTTON}
+        {"label": label, "type": ui.ITEM_BUTTON}
         for label, _ in STEAM_TABS
     ]
     items.extend(
-        {"label": f"{g[0]} ({g[2]})", "type": search.ITEM_BUTTON}
+        {"label": f"{g[0]} ({g[2]})", "type": ui.ITEM_BUTTON}
         for g in steam_games
     )
 
-    result = search.select(items, title="Steam Launcher")
-    print("Selected:", result["index"] if result else None)
+    result = ui.select(items, title="Steam Launcher")
     if result is None:
         return
 

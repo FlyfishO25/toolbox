@@ -11,30 +11,41 @@ and Console, or fuzzy-search your Steam library and launch games natively
 files in configured Steam library paths.
 
 ### Menu Icons (Tahoe) [Deprecated]
-Toggle menu action images globally (`defaults write -g`) or per app. Scans /Applications, /System/Applications, and ~/Applications for installed apps. Changes are saved to `config.json` and applied in parallel with a spinner.
+Toggle menu action images globally (`defaults write -g`) or per app. Scans
+/Applications, /System/Applications, and ~/Applications for installed apps.
+Changes are saved to `config.json` and shown with a progress bar while applying.
 
 ### Fix Apps
 Repair downloaded or modified apps by removing the quarantine extended
 attribute (`xattr -d -r com.apple.quarantine`) or ad-hoc code signing
-(`codesign --force --deep --sign -`). The path prompt accepts dragged files or
-apps from Finder, and sudo is used only when the target is not writable.
+(`codesign --force --deep --sign -`). The drag-only picker accepts one or more
+files or apps from Finder, shows them in a removable queue, and uses sudo only
+when a target is not writable.
 
 ### File Locksmith
-Check which process is locking a file (preventing deletion). Runs `lsof` on the given path and displays the command, PID, and user of each locking process.
+Check which processes are locking one or more files. Runs `lsof` on every path
+and displays the command, PID, user, and affected item for each lock.
 
 ### Clean & Eject Drive
-Scan an external volume for `._*` and `.DS_Store` files, remove them with a progress bar, then optionally eject the drive via `diskutil`.
+Scan an external volume for `._*` and `.DS_Store` files with live scan progress,
+remove them with a determinate progress bar, then optionally eject the drive via
+`diskutil`.
 
 ## TUI Widgets
 
-The `search.py` module provides a unified `select()` widget and utilities:
+The `ui.py` module provides a unified `select()` widget and utilities:
 
-- **`select(items, title, search)`** — Unified widget. Items have a `type` (ITEM_TOGGLE, ITEM_BUTTON, ITEM_NEXT) determining their indicator and behavior. Always searchable. Returns `{"index": int, "states": [bool]}` or `None`.
-  - Toggle: `[x]`/`[ ]` indicator, Space toggles, Enter confirms
-  - Button: ` * ` indicator, Enter executes
-  - Next: ` > ` indicator, Enter selects (caller handles navigation)
-- **`spinner(tasks, title)`** — Runs callables in parallel via ThreadPoolExecutor with a curses spinner overlay.
+All widgets share a sparse SourceHut-inspired header, active bands, cyan accents,
+and consistent arrow-key navigation. Ctrl-Q quits immediately from any screen.
+
+- **`select(items, title, search)`** — Unified widget. Items have a `type` (ITEM_TOGGLE, ITEM_BUTTON, ITEM_NEXT) determining their indicator and behavior. Right/Enter selects and Left/Escape goes back. Returns `{"index": int, "states": [bool]}` or `None`.
+  - Toggle: `[x]`/`[ ]` indicator, Space toggles, Right/Enter confirms
+  - Button: ` · ` indicator, Right/Enter executes
+  - Next: ` › ` indicator, Right/Enter selects (caller handles navigation)
 - **`show_progress(items, title, callback)`** — Animated progress bar.
+- **`show_activity(task, title, message, detail)`** — Indeterminate progress bar for tasks whose total work is not known in advance.
+- **`alert(message, title)`** — Framed notice using the same navigation style.
+- **`file_drop(parser, title, hint)`** — Drag-only multi-item selection with a removable queue.
 - **`fuzzy_select(options)`**, **`toggle_select(...)`**, **`button_select(...)`** — Backward-compat wrappers.
 
 ## Configuration

@@ -1,18 +1,37 @@
 #! /usr/bin/env python
 
-import os
+import shlex
 from pathlib import Path
 
+
+def parse_paths(raw):
+    """Parse one or more shell-escaped paths, as produced by Finder dragging."""
+    raw = raw.strip()
+    if not raw:
+        return []
+
+    try:
+        parts = shlex.split(raw)
+    except ValueError:
+        parts = [raw]
+
+    paths = [Path(part).expanduser() for part in parts]
+
+    # Preserve convenient manual entry of one existing, unquoted path that
+    # contains spaces. Finder-dragged paths are escaped and do not need this.
+    if len(paths) > 1:
+        joined = Path(" ".join(parts)).expanduser()
+        if joined.exists() and not all(path.exists() for path in paths):
+            return [joined]
+
+    return paths
+
 def list_steam_games(steam_paths_macos, steam_paths_crossover):
-    home_dir = Path.home()  # Path to user's home directory
-    steam_prefixes_dir = home_dir / "SteamPrefixes"
-    multiple_paths = False  # If there are multiple steam paths, and user wants to use them all
     res = []
 
     # print("Getting appids")
     for path in steam_paths_macos:
         path = Path(path)
-        print(path)
         # Process each application manifest file to extract game info
         # Steam stores game metadata in appmanifest_[AppID].acf files
         for game in path.glob("./appmanifest_*.acf"):
@@ -38,7 +57,6 @@ def list_steam_games(steam_paths_macos, steam_paths_crossover):
 
     for path in steam_paths_crossover:
         path = Path(path)
-        print(path)
         # Process each application manifest file to extract game info
         # Steam stores game metadata in appmanifest_[AppID].acf files
         for game in path.glob("./appmanifest_*.acf"):

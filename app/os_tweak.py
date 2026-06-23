@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import config
-import search
+import ui
 
 
 PREFERENCE_KEY = "NSMenuEnableActionImages"
@@ -105,7 +105,7 @@ def _load_app_states(apps):
 def _build_items(app_states, global_hidden):
     items = [{
         "label": "[Global] (apps without their own setting)",
-        "type": search.ITEM_TOGGLE,
+        "type": ui.ITEM_TOGGLE,
         "state": global_hidden,
         "global": True,
     }]
@@ -113,7 +113,7 @@ def _build_items(app_states, global_hidden):
     for app in app_states:
         items.append({
             "label": f"{app.name}  ({app.bundle_id})",
-            "type": search.ITEM_TOGGLE,
+            "type": ui.ITEM_TOGGLE,
             "state": _effective_state(app.record, global_hidden),
             "global_override": app.record,
         })
@@ -166,7 +166,7 @@ def main():
     global_hidden = _get_global_state()
     app_states = _load_app_states(apps)
 
-    result = search.select(
+    result = ui.select(
         _build_items(app_states, global_hidden),
         title="Menu Icons (Tahoe)",
     )
@@ -201,7 +201,7 @@ def main():
         if succeeded:
             success_count += 1
 
-    search.show_progress(tasks, title="Applying Changes", callback=apply_one)
+    ui.show_progress(tasks, title="Applying Changes", callback=apply_one)
 
     print(f"\nApplied: {success_count}/{len(tasks)} succeeded.")
     if success_count > 0:
