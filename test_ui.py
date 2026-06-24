@@ -8,6 +8,7 @@ class _Screen:
     def __init__(self, keys):
         self.keys = iter(keys)
         self.drawn = []
+        self.timeouts = []
 
     def getmaxyx(self):
         return 24, 80
@@ -24,11 +25,23 @@ class _Screen:
     def refresh(self):
         pass
 
+    def timeout(self, milliseconds):
+        self.timeouts.append(milliseconds)
+
+    def nodelay(self, enabled):
+        self.timeouts.append(0 if enabled else -1)
+
+    def _next_key(self):
+        key = next(self.keys)
+        if isinstance(key, BaseException):
+            raise key
+        return key
+
     def getch(self):
-        return next(self.keys)
+        return self._next_key()
 
     def get_wch(self):
-        return next(self.keys)
+        return self._next_key()
 
 
 def _run_widget(screen, callback):
@@ -42,6 +55,16 @@ def _run_widget(screen, callback):
 
 
 class NavigationTests(unittest.TestCase):
+    def test_widget_restores_blocking_input_mode(self):
+        screen = _Screen([])
+
+        _run_widget(
+            screen,
+            lambda: ui._run_widget(lambda stdscr: stdscr.nodelay(True)),
+        )
+
+        self.assertEqual(screen.timeouts[-1], -1)
+
     def test_menu_transitions_share_one_curses_session(self):
         screen = _Screen([ui.curses.KEY_RIGHT, ui.curses.KEY_LEFT])
 
@@ -98,10 +121,22 @@ class NavigationTests(unittest.TestCase):
                 lambda: ui.select([{"label": "One"}], title="Test"),
             )
 
+    def test_mouse_double_click_selects_menu_item(self):
+        screen = _Screen([ui.curses.KEY_MOUSE])
+        double_click = getattr(ui.curses, "BUTTON1_DOUBLE_CLICKED", 0)
+
+        with patch.object(ui, "_mouse_event", return_value=(2, 6, double_click)):
+            result = _run_widget(
+                screen,
+                lambda: ui.select([{"label": "One"}], title="Test"),
+            )
+
+        self.assertEqual(result["index"], 0)
+
 
 class FileDropTests(unittest.TestCase):
-    def test_drop_is_added_then_right_confirms(self):
-        keys = [*"dropped", "\n", ui.curses.KEY_RIGHT]
+    def test_drop_is_added_automatically_then_right_confirms(self):
+        keys = [*"dropped", ui.curses.error("no input"), ui.curses.KEY_RIGHT]
         screen = _Screen(keys)
 
         result = _run_widget(
@@ -115,7 +150,12 @@ class FileDropTests(unittest.TestCase):
         self.assertEqual(result, ["/tmp/one", "/tmp/two"])
 
     def test_delete_removes_selected_item(self):
-        keys = [*"dropped", "\n", ui.curses.KEY_DC, ui.curses.KEY_RIGHT]
+        keys = [
+            *"dropped",
+            ui.curses.error("no input"),
+            ui.curses.KEY_DC,
+            ui.curses.KEY_RIGHT,
+        ]
         screen = _Screen(keys)
 
         result = _run_widget(

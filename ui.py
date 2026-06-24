@@ -24,9 +24,17 @@ def _check_quit(key):
 
 
 def _run_widget(callback):
+    def _invoke(stdscr):
+        try:
+            return callback(stdscr)
+        finally:
+            # Animated progress widgets use nonblocking reads. Never allow that
+            # mode to leak into the next interactive screen.
+            stdscr.timeout(-1)
+
     if _active_screen is not None:
-        return callback(_active_screen)
-    return curses.wrapper(callback)
+        return _invoke(_active_screen)
+    return curses.wrapper(_invoke)
 
 
 def run(callback):
@@ -77,9 +85,26 @@ def _init_colors():
     curses.set_escdelay(25)
     curses.start_color()
     curses.use_default_colors()
+    try:
+        curses.mousemask(curses.ALL_MOUSE_EVENTS)
+        curses.mouseinterval(150)
+    except curses.error:
+        pass
     curses.init_pair(1, curses.COLOR_CYAN, -1)  # links and rules
     curses.init_pair(2, curses.COLOR_CYAN, -1)  # accent
     curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)  # active bands
+
+
+def _mouse_event():
+    try:
+        _, x, y, _, state = curses.getmouse()
+        return x, y, state
+    except curses.error:
+        return None
+
+
+def _mouse_has(state, *names):
+    return any(state & getattr(curses, name, 0) for name in names)
 
 
 def _draw_frame(stdscr, title=""):
@@ -184,6 +209,7 @@ def select(items, title="", search=True, back_label="back"):
         nonlocal states
         _init_colors()
         curses.curs_set(1 if search else 0)
+        stdscr.timeout(-1)
 
         query = ""
         sel = 0
@@ -222,6 +248,13 @@ def select(items, title="", search=True, back_label="back"):
                     stdscr.move(3, min(w - 2, 10 + len(query)))
                 key = stdscr.getch()
                 _check_quit(key)
+                if key == curses.KEY_MOUSE:
+                    event = _mouse_event()
+                    if event and _mouse_has(
+                        event[2], "BUTTON3_CLICKED", "BUTTON3_PRESSED"
+                    ):
+                        return None
+                    continue
                 if key in (curses.KEY_LEFT, 27):
                     return None
                 elif key in (curses.KEY_BACKSPACE, 127, 8):
@@ -300,6 +333,30 @@ def select(items, title="", search=True, back_label="back"):
             key = stdscr.getch()
             _check_quit(key)
 
+            if key == curses.KEY_MOUSE:
+                event = _mouse_event()
+                if not event:
+                    continue
+                _, mouse_y, mouse_state = event
+                if _mouse_has(
+                    mouse_state, "BUTTON3_CLICKED", "BUTTON3_PRESSED"
+                ):
+                    return None
+                if _mouse_has(mouse_state, "BUTTON4_PRESSED"):
+                    sel = max(0, sel - 1)
+                    continue
+                if _mouse_has(mouse_state, "BUTTON5_PRESSED"):
+                    sel = min(total - 1, sel + 1)
+                    continue
+
+                clicked_row = mouse_y - (y_body + 1)
+                if 0 <= clicked_row < len(visible):
+                    sel = offset + clicked_row
+                    if _mouse_has(mouse_state, "BUTTON1_DOUBLE_CLICKED"):
+                        orig, _, _ = matches[sel]
+                        return {"index": orig, "states": list(states)}
+                continue
+
             if key in (curses.KEY_RIGHT, 10, 13):  # Enter
                 orig, _, _ = matches[sel]
                 itype = types[orig]
@@ -346,6 +403,7 @@ def alert(message, title="Notice"):
     def _run(stdscr):
         _init_colors()
         curses.curs_set(0)
+        stdscr.timeout(-1)
 
         while True:
             stdscr.erase()
@@ -368,6 +426,22 @@ def alert(message, title="Notice"):
 
             key = stdscr.getch()
             _check_quit(key)
+            if key == curses.KEY_MOUSE:
+                event = _mouse_event()
+                if not event:
+                    continue
+                if _mouse_has(
+                    event[2], "BUTTON3_CLICKED", "BUTTON3_PRESSED"
+                ):
+                    return False
+                if _mouse_has(
+                    event[2],
+                    "BUTTON1_CLICKED",
+                    "BUTTON1_DOUBLE_CLICKED",
+                    "BUTTON1_PRESSED",
+                ):
+                    return True
+                continue
             if key in (curses.KEY_RIGHT, 10, 13):
                 return True
             if key in (curses.KEY_LEFT, 27):
@@ -381,19 +455,37 @@ def alert(message, title="Notice"):
 def file_drop(parser, title="Select Files", hint="Drag files or folders here"):
     """Collect Finder-dropped paths into a removable list.
 
-    Enter adds a pending drop or confirms an existing list. Right confirms the
-    list, Left/Escape goes back, and Delete/Backspace removes the selected item.
+    Dropped paths are added automatically. Right/Enter confirms the list,
+    Left/Escape goes back, and Delete/Backspace removes the selected item.
     """
 
     def _run(stdscr):
         _init_colors()
         curses.curs_set(0)
+        stdscr.timeout(-1)
 
         items = []
         pending = ""
         selected = 0
         offset = 0
         notice = ""
+
+        def commit_pending():
+            nonlocal pending, selected, notice
+            if not pending:
+                return
+            try:
+                dropped = parser(pending)
+            except (TypeError, ValueError):
+                dropped = []
+            pending = ""
+            added = 0
+            for item in dropped:
+                if item not in items:
+                    items.append(item)
+                    added += 1
+            selected = max(0, len(items) - 1)
+            notice = f"Added {added} item{'s' if added != 1 else ''}."
 
         while True:
             stdscr.erase()
@@ -402,7 +494,7 @@ def file_drop(parser, title="Select Files", hint="Drag files or folders here"):
 
             _safe_addstr(stdscr, 4, 2, hint, curses.A_BOLD)
             instruction = (
-                "drop received — press enter to add"
+                "receiving dropped items…"
                 if pending
                 else "drop one or more items into this window"
             )
@@ -460,34 +552,54 @@ def file_drop(parser, title="Select Files", hint="Drag files or folders here"):
             )
             stdscr.refresh()
 
-            key = stdscr.get_wch()
+            # A Finder drop arrives as a burst of characters. Once the burst
+            # has been quiet briefly, parse and add it without another prompt.
+            stdscr.timeout(75 if pending else -1)
+            try:
+                key = stdscr.get_wch()
+            except curses.error:
+                commit_pending()
+                continue
             _check_quit(key)
 
-            if key in (curses.KEY_LEFT, "\x1b"):
+            if key == curses.KEY_MOUSE:
+                event = _mouse_event()
+                if not event:
+                    continue
+                _, mouse_y, mouse_state = event
+                if _mouse_has(
+                    mouse_state, "BUTTON3_CLICKED", "BUTTON3_PRESSED"
+                ):
+                    return None
+                if _mouse_has(mouse_state, "BUTTON4_PRESSED") and items:
+                    selected = max(0, selected - 1)
+                    continue
+                if _mouse_has(mouse_state, "BUTTON5_PRESSED") and items:
+                    selected = min(len(items) - 1, selected + 1)
+                    continue
+
+                clicked_row = mouse_y - 8
+                visible_count = min(MAX_DISPLAY, max(0, len(items) - offset))
+                if 0 <= clicked_row < visible_count:
+                    selected = offset + clicked_row
+                    if _mouse_has(mouse_state, "BUTTON1_DOUBLE_CLICKED"):
+                        commit_pending()
+                        return list(items)
+                continue
+
+            if key in (curses.KEY_LEFT, "\x1b", 27):
                 return None
             if key == curses.KEY_RIGHT:
-                if items and not pending:
+                commit_pending()
+                if items:
                     return list(items)
-                notice = "Add the pending drop first."
+                notice = "Drag at least one item here first."
                 continue
             if key in ("\n", "\r", curses.KEY_ENTER):
-                if pending:
-                    try:
-                        dropped = parser(pending)
-                    except (TypeError, ValueError):
-                        dropped = []
-                    added = 0
-                    for item in dropped:
-                        if item not in items:
-                            items.append(item)
-                            added += 1
-                    pending = ""
-                    selected = max(0, len(items) - 1)
-                    notice = f"Added {added} item{'s' if added != 1 else ''}."
-                elif items:
+                commit_pending()
+                if items:
                     return list(items)
-                else:
-                    notice = "Drag at least one item here first."
+                notice = "Drag at least one item here first."
                 continue
             if key == curses.KEY_DOWN and items:
                 selected = min(len(items) - 1, selected + 1)

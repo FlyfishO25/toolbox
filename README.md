@@ -36,7 +36,9 @@ remove them with a determinate progress bar, then optionally eject the drive via
 The `ui.py` module provides a unified `select()` widget and utilities:
 
 All widgets share a sparse SourceHut-inspired header, active bands, cyan accents,
-and consistent arrow-key navigation. Ctrl-Q quits immediately from any screen.
+and consistent arrow-key navigation. Mouse users can click to select,
+double-click to enter, right-click to go back, and use the scroll wheel to move
+through lists. Ctrl-Q quits immediately from any screen.
 
 - **`select(items, title, search)`** — Unified widget. Items have a `type` (ITEM_TOGGLE, ITEM_BUTTON, ITEM_NEXT) determining their indicator and behavior. Right/Enter selects and Left/Escape goes back. Returns `{"index": int, "states": [bool]}` or `None`.
   - Toggle: `[x]`/`[ ]` indicator, Space toggles, Right/Enter confirms
@@ -45,7 +47,7 @@ and consistent arrow-key navigation. Ctrl-Q quits immediately from any screen.
 - **`show_progress(items, title, callback)`** — Animated progress bar.
 - **`show_activity(task, title, message, detail)`** — Indeterminate progress bar for tasks whose total work is not known in advance.
 - **`alert(message, title)`** — Framed notice using the same navigation style.
-- **`file_drop(parser, title, hint)`** — Drag-only multi-item selection with a removable queue.
+- **`file_drop(parser, title, hint)`** — Drag-only multi-item selection that automatically adds dropped paths to a removable queue.
 - **`fuzzy_select(options)`**, **`toggle_select(...)`**, **`button_select(...)`** — Backward-compat wrappers.
 
 ## Configuration
