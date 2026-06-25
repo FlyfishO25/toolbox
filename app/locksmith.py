@@ -36,10 +36,10 @@ def main():
         if paths is None:
             return
 
-        missing = [path for path in paths if not path.exists()]
+        missing = utils.missing_paths(paths)
         if missing:
             ui.alert(
-                "These paths do not exist:\n" + "\n".join(map(str, missing)),
+                utils.missing_paths_message(missing),
                 title="Invalid Paths",
             )
             continue
@@ -62,18 +62,17 @@ def main():
             continue
 
         while True:
-            items = [
-                {
-                    "label": f"{path.name}: {command} (PID {pid}, {user})",
-                    "type": ui.ITEM_BUTTON,
-                }
-                for path, command, pid, user in locks
-            ]
-            result = ui.select(items, title=f"Locks Found: {len(locks)}")
-            if result is None:
+            choice = ui.choose(
+                [
+                    f"{path.name}: {command} (PID {pid}, {user})"
+                    for path, command, pid, user in locks
+                ],
+                title=f"Locks Found: {len(locks)}",
+            )
+            if choice is None:
                 break
 
-            path, command, pid, user = locks[result["index"]]
+            path, command, pid, user = locks[choice]
             ui.alert(
                 f"Path: {path}\nProcess: {command}\nPID: {pid}\nUser: {user}"
                 f"\n\nTo terminate it: kill {pid}",

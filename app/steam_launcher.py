@@ -11,11 +11,6 @@ import config
 import ui
 import utils
 
-# init
-steam_paths_macos = config.get_steam_paths_macos()
-steam_paths_crossover = config.get_steam_paths_crossover()
-steam_games = utils.list_steam_games(steam_paths_macos, steam_paths_crossover)
-
 STEAM_TABS = [
     ("Steam: Main (CrossOver)", "steam://open/main"),
     ("Steam: Store (CrossOver)", "steam://open/store"),
@@ -53,7 +48,7 @@ def launch_mac_url(url: str):
     )
 
 
-def launch_mac_game(game_id: int):
+def launch_mac_game(game_id):
     launch_mac_url(f"steam://rungameid/{game_id}")
 
 
@@ -72,31 +67,31 @@ def launch_crossover_url(steam_url: str):
     )
 
 
-def launch_crossover_game(game_id: int):
+def launch_crossover_game(game_id):
     launch_crossover_url(f"steam://rungameid/{game_id}")
 
 
-def launch_game():
-    items = [
-        {"label": label, "type": ui.ITEM_BUTTON}
-        for label, _ in STEAM_TABS
-    ]
-    items.extend(
-        {"label": f"{g[0]} ({g[2]})", "type": ui.ITEM_BUTTON}
-        for g in steam_games
+def _load_games():
+    return utils.list_steam_games(
+        config.get_steam_paths_macos(),
+        config.get_steam_paths_crossover(),
     )
 
-    result = ui.select(items, title="Steam Launcher")
-    if result is None:
+
+def launch_game():
+    games = _load_games()
+    choice = ui.choose(
+        [label for label, _ in STEAM_TABS]
+        + [f"{name} ({platform})" for name, _, platform in games],
+        title="Steam Launcher",
+    )
+    if choice is None:
         return
 
-    choice = result["index"]
     if choice < len(STEAM_TABS):
         launch_crossover_url(STEAM_TABS[choice][1])
         return
 
-    game = steam_games[choice - len(STEAM_TABS)]
-    if game[2] == 'macOS':
-        launch_mac_game(game[1])
-    else:
-        launch_crossover_game(game[1])
+    _, appid, platform = games[choice - len(STEAM_TABS)]
+    launcher = launch_mac_game if platform == "macOS" else launch_crossover_game
+    launcher(appid)

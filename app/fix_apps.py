@@ -55,15 +55,11 @@ def _run_command(command, needs_sudo):
 
 def main():
     while True:
-        items = [
-            {"label": label, "type": ui.ITEM_BUTTON}
-            for label, _ in ACTIONS
-        ]
-        result = ui.select(items, title="Fix Apps")
-        if result is None:
+        choice = ui.choose([label for label, _ in ACTIONS], title="Fix Apps")
+        if choice is None:
             return
 
-        action_label, action = ACTIONS[result["index"]]
+        action_label, action = ACTIONS[choice]
 
         while True:
             paths = ui.file_drop(
@@ -74,10 +70,10 @@ def main():
             if paths is None:
                 break
 
-            missing = [path for path in paths if not path.exists()]
+            missing = utils.missing_paths(paths)
             if missing:
                 ui.alert(
-                    "These paths do not exist:\n" + "\n".join(map(str, missing)),
+                    utils.missing_paths_message(missing),
                     title="Invalid Paths",
                 )
                 continue

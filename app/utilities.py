@@ -4,28 +4,23 @@ import ui
 
 
 UTILITIES = ["Flush DNS Cache"]
+FLUSH_DNS_COMMANDS = [
+    ["sudo", "-n", "dscacheutil", "-flushcache"],
+    ["sudo", "-n", "killall", "-HUP", "mDNSResponder"],
+]
 
 
 def _flush_dns():
-    commands = [
-        ["sudo", "-n", "dscacheutil", "-flushcache"],
-        ["sudo", "-n", "killall", "-HUP", "mDNSResponder"],
-    ]
     results = [
         subprocess.run(command, capture_output=True).returncode
-        for command in commands
+        for command in FLUSH_DNS_COMMANDS
     ]
     return all(returncode == 0 for returncode in results)
 
 
 def main():
     while True:
-        items = [
-            {"label": label, "type": ui.ITEM_BUTTON}
-            for label in UTILITIES
-        ]
-        result = ui.select(items, title="Utilities")
-        if result is None:
+        if ui.choose(UTILITIES, title="Utilities") is None:
             return
 
         if not ui.confirm(

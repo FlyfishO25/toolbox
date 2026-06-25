@@ -4,17 +4,20 @@ from pathlib import Path
 
 import ui
 
+JUNK_FILENAMES = {".DS_Store"}
+JUNK_PREFIXES = ("._",)
+
 
 def _list_external_volumes():
-    volumes = []
     vol_root = Path("/Volumes")
     if not vol_root.exists():
-        return volumes
+        return []
 
-    for p in vol_root.iterdir():
-        if p.is_dir() and not p.is_symlink() and p.name != "Macintosh HD":
-            volumes.append(str(p))
-    return sorted(volumes)
+    return sorted(
+        str(path)
+        for path in vol_root.iterdir()
+        if path.is_dir() and not path.is_symlink() and path.name != "Macintosh HD"
+    )
 
 
 def _find_junk(volume_path, on_file=None):
@@ -23,7 +26,7 @@ def _find_junk(volume_path, on_file=None):
         for f in files:
             if on_file:
                 on_file()
-            if f.startswith("._") or f == ".DS_Store":
+            if f in JUNK_FILENAMES or f.startswith(JUNK_PREFIXES):
                 junk.append(os.path.join(root, f))
     return junk
 
@@ -57,13 +60,11 @@ def main():
         )
         return
 
-    items = [{"label": v, "type": ui.ITEM_BUTTON} for v in volumes]
-    result = ui.select(items, title="Select Drive to Clean")
-
-    if result is None:
+    choice = ui.choose(volumes, title="Select Drive to Clean")
+    if choice is None:
         return
 
-    volume = volumes[result["index"]]
+    volume = volumes[choice]
     volume_name = Path(volume).name
 
     if _volume_is_read_only(volume):
@@ -106,16 +107,12 @@ def main():
     ui.show_progress(junk, title=f"Cleaning {volume_name}", callback=delete_one)
 
     if deleted > 0:
-        choices = [
-            {"label": "No — Keep drive mounted", "type": ui.ITEM_BUTTON},
-            {"label": "Yes — Eject drive", "type": ui.ITEM_BUTTON},
-        ]
-        answer = ui.select(
-            choices,
+        answer = ui.choose(
+            ["No - Keep drive mounted", "Yes - Eject drive"],
             title=f"Removed {deleted}/{len(junk)} Files",
             search=False,
         )
-        if answer is not None and answer["index"] == 1:
+        if answer == 1:
             ui.alert(
                 _eject_volume(volume, volume_name),
                 title="Clean & Eject Drive",

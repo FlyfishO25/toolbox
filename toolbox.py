@@ -8,7 +8,6 @@ from app import (
     steam_launcher,
     utilities,
 )
-# from app import os_tweak
 
 FEATURES = [
     {
@@ -16,11 +15,6 @@ FEATURES = [
         "label": "Steam Launcher",
         "action": steam_launcher.launch_game,
     },
-    # {
-    #     "key": "menu_icons_tahoe",
-    #     "label": "Menu Icons (Tahoe)",
-    #     "action": os_tweak.main,
-    # },
     {
         "key": "fix_apps",
         "label": "Fix Apps",
@@ -67,11 +61,14 @@ def main():
     def menu_loop():
         while True:
             apps = _visible_apps()
-            items = [{"label": name, "type": ui.ITEM_BUTTON} for name, _ in apps]
-            result = ui.select(items, title="home", back_label="quit")
-            if result is None:
+            choice = ui.choose(
+                [name for name, _ in apps],
+                title="home",
+                back_label="quit",
+            )
+            if choice is None:
                 return
-            apps[result["index"]][1]()
+            apps[choice][1]()
 
     try:
         ui.run(menu_loop)

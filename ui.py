@@ -9,6 +9,9 @@ ITEM_TOGGLE = 0
 ITEM_BUTTON = 1
 ITEM_NEXT = 2
 CTRL_Q = 17
+ENTER_KEYS = (curses.KEY_RIGHT, 10, 13)
+BACK_KEYS = (curses.KEY_LEFT, 27)
+BACKSPACE_KEYS = (curses.KEY_BACKSPACE, 127, 8)
 
 
 class QuitRequested(Exception):
@@ -143,6 +146,25 @@ def _draw_status(stdscr, parts):
     _safe_addstr(stdscr, h - 1, 2, text, curses.color_pair(3))
 
 
+def button_items(labels):
+    return [{"label": label, "type": ITEM_BUTTON} for label in labels]
+
+
+def toggle_items(labels, states=None):
+    labels = list(labels)
+    if states is None:
+        states = [False] * len(labels)
+    return [
+        {"label": label, "type": ITEM_TOGGLE, "state": state}
+        for label, state in zip(labels, states)
+    ]
+
+
+def choose(labels, **kwargs):
+    result = select(button_items(labels), **kwargs)
+    return None if result is None else result["index"]
+
+
 def _safe_addstr(stdscr, y, x, text, attr=0):
     h, w = stdscr.getmaxyx()
     if y < 0 or y >= h or x >= w:
@@ -158,6 +180,34 @@ def _spinner_gen():
     while True:
         yield frames[i % 4]
         i += 1
+
+
+def _wrap_message(message, width):
+    lines = []
+    for paragraph in str(message).splitlines() or [""]:
+        lines.extend(textwrap.wrap(paragraph, max(1, width)) or [""])
+    return lines
+
+
+def _draw_centered_message(stdscr, message):
+    h, w = stdscr.getmaxyx()
+    lines = _wrap_message(message, w - 8)
+    start_y = max(HEADER_HEIGHT + 1, (h - len(lines)) // 2)
+    for index, line in enumerate(lines):
+        _safe_addstr(stdscr, start_y + index, 4, line)
+
+
+def _mouse_choice(state):
+    if _mouse_has(state, "BUTTON3_CLICKED", "BUTTON3_PRESSED"):
+        return False
+    if _mouse_has(
+        state,
+        "BUTTON1_CLICKED",
+        "BUTTON1_DOUBLE_CLICKED",
+        "BUTTON1_PRESSED",
+    ):
+        return True
+    return None
 
 
 # ── fuzzy match ────────────────────────────────────────────────────────────────
@@ -287,9 +337,9 @@ def select(
                     ):
                         return None
                     continue
-                if key in (curses.KEY_LEFT, 27):
+                if key in BACK_KEYS:
                     return None
-                elif key in (curses.KEY_BACKSPACE, 127, 8):
+                elif key in BACKSPACE_KEYS:
                     query = query[:-1]
                 elif 32 <= key <= 126:
                     query += chr(key)
@@ -389,24 +439,19 @@ def select(
                         return {"index": orig, "states": list(states)}
                 continue
 
-            if key in (curses.KEY_RIGHT, 10, 13):  # Enter
+            if key in ENTER_KEYS:
                 orig, _, _ = matches[sel]
-                itype = types[orig]
-                if itype == ITEM_TOGGLE:
-                    # confirm all toggle changes
-                    return {"index": orig, "states": list(states)}
-                else:
-                    return {"index": orig, "states": list(states)}
+                return {"index": orig, "states": list(states)}
 
-            elif key in (curses.KEY_LEFT, 27):  # Back
+            elif key in BACK_KEYS:
                 return None
 
-            elif key == ord(" "):  # Space
+            elif key == ord(" "):
                 orig, _, _ = matches[sel]
                 if types[orig] == ITEM_TOGGLE:
                     _toggle(items, types, states, orig)
 
-            elif key in (curses.KEY_BACKSPACE, 127, 8):
+            elif key in BACKSPACE_KEYS:
                 query = query[:-1]
                 sel = 0
                 offset = 0
@@ -440,15 +485,7 @@ def alert(message, title="Notice"):
         while True:
             stdscr.erase()
             _draw_frame(stdscr, title)
-            h, w = stdscr.getmaxyx()
-
-            lines = []
-            for paragraph in str(message).splitlines() or [""]:
-                lines.extend(textwrap.wrap(paragraph, max(1, w - 8)) or [""])
-
-            start_y = max(HEADER_HEIGHT + 1, (h - len(lines)) // 2)
-            for index, line in enumerate(lines):
-                _safe_addstr(stdscr, start_y + index, 4, line)
+            _draw_centered_message(stdscr, message)
 
             _draw_status(
                 stdscr,
@@ -466,21 +503,13 @@ def alert(message, title="Notice"):
                 event = _mouse_event()
                 if not event:
                     continue
-                if _mouse_has(
-                    event[2], "BUTTON3_CLICKED", "BUTTON3_PRESSED"
-                ):
-                    return False
-                if _mouse_has(
-                    event[2],
-                    "BUTTON1_CLICKED",
-                    "BUTTON1_DOUBLE_CLICKED",
-                    "BUTTON1_PRESSED",
-                ):
-                    return True
+                choice = _mouse_choice(event[2])
+                if choice is not None:
+                    return choice
                 continue
-            if key in (curses.KEY_RIGHT, 10, 13):
+            if key in ENTER_KEYS:
                 return True
-            if key in (curses.KEY_LEFT, 27):
+            if key in BACK_KEYS:
                 return False
 
     return _run_widget(_run)
@@ -499,14 +528,7 @@ def confirm(message, title="Confirm"):
         while True:
             stdscr.erase()
             _draw_frame(stdscr, title)
-            h, w = stdscr.getmaxyx()
-
-            lines = []
-            for paragraph in str(message).splitlines() or [""]:
-                lines.extend(textwrap.wrap(paragraph, max(1, w - 8)) or [""])
-            start_y = max(HEADER_HEIGHT + 1, (h - len(lines)) // 2)
-            for index, line in enumerate(lines):
-                _safe_addstr(stdscr, start_y + index, 4, line)
+            _draw_centered_message(stdscr, message)
 
             _draw_status(
                 stdscr,
@@ -524,21 +546,13 @@ def confirm(message, title="Confirm"):
                 event = _mouse_event()
                 if not event:
                     continue
-                if _mouse_has(
-                    event[2], "BUTTON3_CLICKED", "BUTTON3_PRESSED"
-                ):
-                    return False
-                if _mouse_has(
-                    event[2],
-                    "BUTTON1_CLICKED",
-                    "BUTTON1_DOUBLE_CLICKED",
-                    "BUTTON1_PRESSED",
-                ):
-                    return True
+                choice = _mouse_choice(event[2])
+                if choice is not None:
+                    return choice
                 continue
-            if key in (ord("y"), ord("Y"), curses.KEY_RIGHT, 10, 13):
+            if key in (ord("y"), ord("Y"), *ENTER_KEYS):
                 return True
-            if key in (ord("n"), ord("N"), curses.KEY_LEFT, 27):
+            if key in (ord("n"), ord("N"), *BACK_KEYS):
                 return False
 
     return _run_widget(_run)
@@ -793,26 +807,18 @@ def show_activity(task, title="Working", message="Please wait", detail=None):
 
 def fuzzy_select(options):
     """Backward compat: select from string list, returns index or None."""
-    items = [{"label": opt, "type": ITEM_BUTTON} for opt in options]
-    r = select(items, title="Search")
-    return r["index"] if r else None
+    return choose(options, title="Search")
 
 
 def toggle_select(options, states=None, title=""):
     """Backward compat: multi-toggle, returns list[bool] or None."""
-    if states is None:
-        states = [False] * len(options)
-    items = [{"label": opt, "type": ITEM_TOGGLE, "state": s}
-             for opt, s in zip(options, states)]
-    r = select(items, title=title, search=True)
+    r = select(toggle_items(options, states), title=title, search=True)
     return r["states"] if r else None
 
 
 def button_select(options, title=""):
     """Backward compat: single-select button list, returns index or None."""
-    items = [{"label": opt, "type": ITEM_BUTTON} for opt in options]
-    r = select(items, title=title, search=True)
-    return r["index"] if r else None
+    return choose(options, title=title, search=True)
 
 
 # ── progress bar ───────────────────────────────────────────────────────────────

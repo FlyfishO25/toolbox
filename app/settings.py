@@ -16,14 +16,10 @@ def is_enabled(feature_key):
 
 
 def _build_items(features):
-    return [
-        {
-            "label": feature["label"],
-            "type": ui.ITEM_TOGGLE,
-            "state": is_enabled(feature["key"]),
-        }
-        for feature in features
-    ]
+    return ui.toggle_items(
+        [feature["label"] for feature in features],
+        [is_enabled(feature["key"]) for feature in features],
+    )
 
 
 def _save_states(features, states):

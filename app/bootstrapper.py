@@ -11,13 +11,6 @@ HOMEBREW_COMMAND = (
     'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
 )
 
-STEPS = [
-    "Enable Touch ID for sudo",
-    "Install Xcode Command Line Tools and accept license",
-    "Install Homebrew",
-]
-
-
 def _run(command, env=None):
     try:
         return subprocess.run(
@@ -75,6 +68,17 @@ def _install_homebrew():
     return "succeeded" if result.returncode == 0 else "failed"
 
 
+def _steps():
+    return [
+        ("Enable Touch ID for sudo", _enable_touch_id),
+        (
+            "Install Xcode Command Line Tools and accept license",
+            _install_command_line_tools,
+        ),
+        ("Install Homebrew", _install_homebrew),
+    ]
+
+
 def _authorize():
     return ui.suspend(lambda: subprocess.run(["sudo", "-v"])).returncode == 0
 
@@ -111,15 +115,11 @@ def _run_step(index, total, step, runner):
 
 
 def main():
-    runners = [
-        _enable_touch_id,
-        _install_command_line_tools,
-        _install_homebrew,
-    ]
+    steps = _steps()
     outcomes = []
-    total = len(STEPS)
+    total = len(steps)
 
-    for index, (step, runner) in enumerate(zip(STEPS, runners), start=1):
+    for index, (step, runner) in enumerate(steps, start=1):
         if not _ask_step(index, total, step):
             outcome = "skipped"
         else:

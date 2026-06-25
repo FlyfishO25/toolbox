@@ -25,7 +25,6 @@ def _read():
 def _write(data):
     with open(CONFIG_FILE, "w") as f:
         json.dump(data, f, indent=2)
-    f.close()
 
 
 def get(key, default=None):
