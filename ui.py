@@ -450,6 +450,60 @@ def alert(message, title="Notice"):
     return _run_widget(_run)
 
 
+# ── confirmation widget ──────────────────────────────────────────────────────
+
+def confirm(message, title="Confirm"):
+    """Ask a styled yes/no question. Y/Right/Enter confirms."""
+
+    def _run(stdscr):
+        _init_colors()
+        curses.curs_set(0)
+        stdscr.timeout(-1)
+
+        while True:
+            stdscr.erase()
+            _draw_frame(stdscr, title)
+            h, w = stdscr.getmaxyx()
+
+            lines = []
+            for paragraph in str(message).splitlines() or [""]:
+                lines.extend(textwrap.wrap(paragraph, max(1, w - 8)) or [""])
+            start_y = max(HEADER_HEIGHT + 1, (h - len(lines)) // 2)
+            for index, line in enumerate(lines):
+                _safe_addstr(stdscr, start_y + index, 4, line)
+
+            _draw_status(
+                stdscr,
+                "y / right / enter: yes  n / left / esc: no  ctrl-q: quit",
+            )
+            stdscr.refresh()
+
+            key = stdscr.getch()
+            _check_quit(key)
+            if key == curses.KEY_MOUSE:
+                event = _mouse_event()
+                if not event:
+                    continue
+                if _mouse_has(
+                    event[2], "BUTTON3_CLICKED", "BUTTON3_PRESSED"
+                ):
+                    return False
+                if _mouse_has(
+                    event[2],
+                    "BUTTON1_CLICKED",
+                    "BUTTON1_DOUBLE_CLICKED",
+                    "BUTTON1_PRESSED",
+                ):
+                    return True
+                continue
+            if key in (ord("y"), ord("Y"), curses.KEY_RIGHT, 10, 13):
+                return True
+            if key in (ord("n"), ord("N"), curses.KEY_LEFT, 27):
+                return False
+
+    return _run_widget(_run)
+
+
 # ── drag-only file selection ──────────────────────────────────────────────────
 
 def file_drop(parser, title="Select Files", hint="Drag files or folders here"):

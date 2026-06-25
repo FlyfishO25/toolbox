@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from app import ejector
@@ -43,6 +44,44 @@ class JunkScanningTests(unittest.TestCase):
 
         show_activity.assert_called_once()
         self.assertEqual(show_activity.call_args.kwargs["title"], "Scanning Test")
+
+    def test_read_only_drive_ejects_without_scanning_or_deleting(self):
+        with (
+            patch.object(
+                ejector,
+                "_list_external_volumes",
+                return_value=["/Volumes/ReadOnly"],
+            ),
+            patch.object(ejector.ui, "select", return_value={"index": 0}),
+            patch.object(ejector, "_volume_is_read_only", return_value=True),
+            patch.object(
+                ejector.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0),
+            ) as run,
+            patch.object(ejector.ui, "alert") as alert,
+            patch.object(ejector.ui, "show_activity") as show_activity,
+            patch.object(ejector.ui, "show_progress") as show_progress,
+            patch.object(ejector.os, "remove") as remove,
+        ):
+            ejector.main()
+
+        show_activity.assert_not_called()
+        show_progress.assert_not_called()
+        remove.assert_not_called()
+        run.assert_called_once_with(
+            ["diskutil", "eject", "/Volumes/ReadOnly"],
+            capture_output=True,
+        )
+        self.assertIn("read-only", alert.call_args.args[0])
+
+    def test_volume_read_only_uses_statvfs_flag(self):
+        with patch.object(
+            ejector.os,
+            "statvfs",
+            return_value=SimpleNamespace(f_flag=ejector.os.ST_RDONLY),
+        ):
+            self.assertTrue(ejector._volume_is_read_only("/Volumes/Locked"))
 
 
 if __name__ == "__main__":

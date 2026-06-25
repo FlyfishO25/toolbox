@@ -1,5 +1,12 @@
 import ui
-from app import ejector, fix_apps, locksmith, steam_launcher
+from app import (
+    bootstrapper,
+    ejector,
+    fix_apps,
+    locksmith,
+    steam_launcher,
+    utilities,
+)
 # from app import os_tweak
 
 apps = [
@@ -8,6 +15,8 @@ apps = [
     ("Fix Apps", fix_apps.main),
     ("File Locksmith", locksmith.main),
     ("Clean & Eject Drive", ejector.main),
+    ("Utilities", utilities.main),
+    ("Bootstrapper", bootstrapper.main),
 ]
 
 def main():

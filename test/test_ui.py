@@ -65,6 +65,17 @@ class NavigationTests(unittest.TestCase):
 
         self.assertEqual(screen.timeouts[-1], -1)
 
+    def test_confirmation_accepts_y_and_rejects_n(self):
+        yes_screen = _Screen([ord("y")])
+        no_screen = _Screen([ord("n")])
+
+        self.assertTrue(
+            _run_widget(yes_screen, lambda: ui.confirm("Continue?"))
+        )
+        self.assertFalse(
+            _run_widget(no_screen, lambda: ui.confirm("Continue?"))
+        )
+
     def test_menu_transitions_share_one_curses_session(self):
         screen = _Screen([ui.curses.KEY_RIGHT, ui.curses.KEY_LEFT])
 
