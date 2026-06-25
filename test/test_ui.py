@@ -108,6 +108,22 @@ class NavigationTests(unittest.TestCase):
 
         self.assertEqual(result["index"], 0)
 
+    def test_select_can_customize_action_label(self):
+        screen = _Screen([ui.curses.KEY_RIGHT])
+
+        _run_widget(
+            screen,
+            lambda: ui.select(
+                [{"label": "One"}],
+                title="Test",
+                action_label="confirm",
+            ),
+        )
+
+        self.assertTrue(
+            any("right/enter: confirm" in text for text in screen.drawn)
+        )
+
     def test_left_goes_back_and_home_labels_it_quit(self):
         screen = _Screen([ui.curses.KEY_LEFT])
 

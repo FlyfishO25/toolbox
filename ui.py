@@ -119,7 +119,25 @@ def _draw_frame(stdscr, title=""):
     _safe_addstr(stdscr, 2, 0, "─" * max(0, w - 1), curses.color_pair(1))
 
 
-def _draw_status(stdscr, text):
+def _format_status(parts):
+    if isinstance(parts, str):
+        return parts
+
+    labels = []
+    for part in parts:
+        if isinstance(part, str):
+            if part:
+                labels.append(part)
+            continue
+        keys, label = part
+        if not label:
+            continue
+        labels.append(f"{keys}: {label}" if keys else str(label))
+    return "  ".join(labels)
+
+
+def _draw_status(stdscr, parts):
+    text = _format_status(parts)
     h, w = stdscr.getmaxyx()
     _safe_addstr(stdscr, h - 1, 0, " " * max(0, w - 1), curses.color_pair(3))
     _safe_addstr(stdscr, h - 1, 2, text, curses.color_pair(3))
@@ -187,7 +205,15 @@ def _toggle(items, types, states, index):
 
 # ── unified select widget ──────────────────────────────────────────────────────
 
-def select(items, title="", search=True, back_label="back"):
+def select(
+    items,
+    title="",
+    search=True,
+    back_label="back",
+    action_label="select",
+    toggle_label="toggle",
+    quit_label="quit",
+):
     """Unified select widget with optional fuzzy search.
 
     items: list of dicts with keys:
@@ -196,6 +222,8 @@ def select(items, title="", search=True, back_label="back"):
         "state" (bool, for toggles only)
         "global" (bool, marks a toggle as the global controller)
         "global_override" (bool | None, fixed child state during global changes)
+
+    action_label/back_label/toggle_label/quit_label customize status text.
 
     Returns dict{"index": int, "states": list[bool]} or None on ESC.
     """
@@ -242,7 +270,11 @@ def select(items, title="", search=True, back_label="back"):
             if total == 0:
                 _safe_addstr(stdscr, y_body + 1, 2, "No matches")
                 _draw_status(
-                    stdscr, f"← left/esc: {back_label}  ctrl-q: quit"
+                    stdscr,
+                    [
+                        ("← left/esc", back_label),
+                        ("ctrl-q", quit_label),
+                    ],
                 )
                 if search:
                     stdscr.move(3, min(w - 2, 10 + len(query)))
@@ -320,11 +352,11 @@ def select(items, title="", search=True, back_label="back"):
             # ── status bar ──
             parts = []
             if has_toggle:
-                parts.append("space: toggle")
-            parts.append("→ right/enter: select")
-            parts.append(f"← left/esc: {back_label}")
-            parts.append("ctrl-q: quit")
-            _draw_status(stdscr, "  ".join(parts))
+                parts.append(("space", toggle_label))
+            parts.append(("→ right/enter", action_label))
+            parts.append(("← left/esc", back_label))
+            parts.append(("ctrl-q", quit_label))
+            _draw_status(stdscr, parts)
             if search:
                 stdscr.move(3, min(w - 2, 10 + len(query)))
             stdscr.refresh()
@@ -420,7 +452,11 @@ def alert(message, title="Notice"):
 
             _draw_status(
                 stdscr,
-                "← left/esc: back  → right/enter: continue  ctrl-q: quit",
+                [
+                    ("← left/esc", "back"),
+                    ("→ right/enter", "continue"),
+                    ("ctrl-q", "quit"),
+                ],
             )
             stdscr.refresh()
 
@@ -474,7 +510,11 @@ def confirm(message, title="Confirm"):
 
             _draw_status(
                 stdscr,
-                "y / right / enter: yes  n / left / esc: no  ctrl-q: quit",
+                [
+                    ("y / right / enter", "yes"),
+                    ("n / left / esc", "no"),
+                    ("ctrl-q", "quit"),
+                ],
             )
             stdscr.refresh()
 
@@ -601,8 +641,12 @@ def file_drop(parser, title="Select Files", hint="Drag files or folders here"):
 
             _draw_status(
                 stdscr,
-                "→ right/enter: confirm  ← left/esc: back  "
-                "delete: remove  ctrl-q: quit",
+                [
+                    ("→ right/enter", "confirm"),
+                    ("← left/esc", "back"),
+                    ("delete", "remove"),
+                    ("ctrl-q", "quit"),
+                ],
             )
             stdscr.refresh()
 
@@ -724,7 +768,7 @@ def show_activity(task, title="Working", message="Please wait", detail=None):
             if detail:
                 detail_text = detail() if callable(detail) else detail
                 _safe_addstr(stdscr, h // 2 + 1, 4, detail_text)
-            _draw_status(stdscr, "working…  ctrl-q: quit")
+            _draw_status(stdscr, [(None, "working…"), ("ctrl-q", "quit")])
             stdscr.refresh()
 
             key = stdscr.getch()
@@ -796,7 +840,7 @@ def show_progress(items, title="Progress", callback=None):
             _safe_addstr(stdscr, h // 2 - 1, 4, f"{next(spin)} {item}")
             _safe_addstr(stdscr, h // 2, 4, bar, curses.color_pair(2))
             _safe_addstr(stdscr, h // 2 + 1, 4, f"{i + 1}/{total}  {pct}%")
-            _draw_status(stdscr, "working…  ctrl-q: quit")
+            _draw_status(stdscr, [(None, "working…"), ("ctrl-q", "quit")])
             stdscr.refresh()
 
             key = stdscr.getch()

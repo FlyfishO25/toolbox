@@ -42,6 +42,10 @@ the Xcode license, then install Homebrew. Declined steps are skipped. If Apple
 opens the Command Line Tools installer, dependent work is reported as pending or
 skipped until Bootstrapper is run again.
 
+### Settings
+Enable or disable Toolbox features. Disabled features are hidden from the home
+menu, while Settings always stays visible so features can be restored later.
+
 ## TUI Widgets
 
 The `ui.py` module provides a unified `select()` widget and utilities:
@@ -51,7 +55,7 @@ and consistent arrow-key navigation. Mouse users can click to select,
 double-click to enter, right-click to go back, and use the scroll wheel to move
 through lists. Ctrl-Q quits immediately from any screen.
 
-- **`select(items, title, search)`** — Unified widget. Items have a `type` (ITEM_TOGGLE, ITEM_BUTTON, ITEM_NEXT) determining their indicator and behavior. Right/Enter selects and Left/Escape goes back. Returns `{"index": int, "states": [bool]}` or `None`.
+- **`select(items, title, search, action_label)`** — Unified widget. Items have a `type` (ITEM_TOGGLE, ITEM_BUTTON, ITEM_NEXT) determining their indicator and behavior. Right/Enter uses the customizable `action_label`, Left/Escape goes back, and the widget returns `{"index": int, "states": [bool]}` or `None`.
   - Toggle: `[x]`/`[ ]` indicator, Space toggles, Right/Enter confirms
   - Button: ` · ` indicator, Right/Enter executes
   - Next: ` › ` indicator, Right/Enter selects (caller handles navigation)
@@ -70,9 +74,8 @@ through lists. Ctrl-Q quits immediately from any screen.
 {
   "steamapps_paths_macos": ["~/Library/Application Support/Steam/steamapps"],
   "steamapps_paths_crossover": ["~/Library/Application Support/CrossOver/Bottles/Steam/drive_c/Program Files (x86)/Steam/steamapps"],
-  "tahoe_states": {
-    "__global__": true,
-    "com.apple.Safari": false
+  "enabled_features": {
+    "bootstrapper": false
   }
 }
 ```
