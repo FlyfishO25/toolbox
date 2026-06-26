@@ -3,17 +3,18 @@ from app import (
     bootstrapper,
     ejector,
     fix_apps,
+    game_launcher,
     locksmith,
     settings,
-    steam_launcher,
     utilities,
 )
 
 FEATURES = [
     {
-        "key": "steam_launcher",
-        "label": "Steam Launcher",
-        "action": steam_launcher.launch_game,
+        "key": "game_launcher",
+        "legacy_keys": ["steam_launcher"],
+        "label": "Game Launcher",
+        "action": game_launcher.launch_game,
     },
     {
         "key": "fix_apps",
@@ -51,7 +52,7 @@ def _visible_apps():
     apps = [
         (feature["label"], feature["action"])
         for feature in FEATURES
-        if settings.is_enabled(feature["key"])
+        if settings.is_enabled(feature["key"], feature.get("legacy_keys"))
     ]
     apps.append(("Settings", _open_settings))
     return apps

@@ -23,6 +23,32 @@ class SettingsTests(unittest.TestCase):
         ):
             self.assertFalse(settings.is_enabled("new_feature"))
 
+    def test_legacy_feature_state_is_used_when_new_key_is_missing(self):
+        with patch.object(
+            settings.config,
+            "get",
+            return_value={"old_feature": False},
+        ):
+            self.assertFalse(
+                settings.is_enabled(
+                    "new_feature",
+                    legacy_keys=["old_feature"],
+                )
+            )
+
+    def test_new_feature_state_overrides_legacy_state(self):
+        with patch.object(
+            settings.config,
+            "get",
+            return_value={"new_feature": True, "old_feature": False},
+        ):
+            self.assertTrue(
+                settings.is_enabled(
+                    "new_feature",
+                    legacy_keys=["old_feature"],
+                )
+            )
+
     def test_build_items_uses_saved_states(self):
         with patch.object(
             settings.config,

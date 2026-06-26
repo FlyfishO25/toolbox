@@ -10,15 +10,24 @@ def _load_feature_states():
     return dict(states) if isinstance(states, dict) else {}
 
 
-def is_enabled(feature_key):
-    state = _load_feature_states().get(feature_key)
+def is_enabled(feature_key, legacy_keys=None):
+    states = _load_feature_states()
+    state = states.get(feature_key)
+    if state is None:
+        for legacy_key in legacy_keys or []:
+            if legacy_key in states:
+                state = states[legacy_key]
+                break
     return True if state is None else bool(state)
 
 
 def _build_items(features):
     return ui.toggle_items(
         [feature["label"] for feature in features],
-        [is_enabled(feature["key"]) for feature in features],
+        [
+            is_enabled(feature["key"], feature.get("legacy_keys"))
+            for feature in features
+        ],
     )
 
 

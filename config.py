@@ -11,6 +11,7 @@ DEFAULTS = {
     "steamapps_paths_crossover": [
         "~/Library/Application Support/CrossOver/Bottles/Steam/drive_c/Program Files (x86)/Steam/steamapps"
     ],
+    "game_executables": [],
     "enabled_features": {},
 }
 

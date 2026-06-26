@@ -4,11 +4,14 @@ A terminal-based toolbox for macOS. Launches a curses TUI where you fuzzy-search
 
 ## Apps
 
-### Steam Launcher
-Open common Steam tabs such as Store, Library, Friends, Downloads, Settings,
-and Console, or fuzzy-search your Steam library and launch games natively
-(macOS) or via CrossOver/Wine. Reads game metadata from `appmanifest_*.acf`
-files in configured Steam library paths.
+### Game Launcher
+Press Ctrl-A to add custom game apps or executables by dragging them into the
+launcher, then launch them later from the same menu. Press Ctrl-D on a custom
+game to remove it from the launcher without deleting the file; Steam games are
+not removable here. Also opens common Steam tabs such as Store, Library,
+Friends, Downloads, and Settings, or fuzzy-searches your Steam library and
+launches games natively (macOS) or via CrossOver/Wine. Reads Steam game metadata
+from `appmanifest_*.acf` files in configured Steam library paths.
 
 ### Menu Icons (Tahoe) [Deprecated]
 Toggle menu action images globally (`defaults write -g`) or per app. Scans
@@ -74,7 +77,9 @@ through lists. Ctrl-Q quits immediately from any screen.
 {
   "steamapps_paths_macos": ["~/Library/Application Support/Steam/steamapps"],
   "steamapps_paths_crossover": ["~/Library/Application Support/CrossOver/Bottles/Steam/drive_c/Program Files (x86)/Steam/steamapps"],
+  "game_executables": ["/Applications/Hades.app"],
   "enabled_features": {
+    "game_launcher": true,
     "bootstrapper": false
   }
 }

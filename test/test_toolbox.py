@@ -9,12 +9,23 @@ class HomeMenuTests(unittest.TestCase):
         with patch.object(
             toolbox.settings,
             "is_enabled",
-            side_effect=lambda key: key != "bootstrapper",
+            side_effect=lambda key, legacy_keys=None: key != "bootstrapper",
         ):
             labels = [label for label, _ in toolbox._visible_apps()]
 
         self.assertNotIn("Bootstrapper", labels)
-        self.assertIn("Steam Launcher", labels)
+        self.assertIn("Game Launcher", labels)
+
+    def test_legacy_steam_launcher_flag_is_respected(self):
+        with patch.object(
+            toolbox.settings,
+            "is_enabled",
+            side_effect=lambda key, legacy_keys=None: legacy_keys
+            != ["steam_launcher"],
+        ):
+            labels = [label for label, _ in toolbox._visible_apps()]
+
+        self.assertNotIn("Game Launcher", labels)
 
     def test_settings_is_always_visible(self):
         with patch.object(toolbox.settings, "is_enabled", return_value=False):

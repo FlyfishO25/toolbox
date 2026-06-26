@@ -124,6 +124,51 @@ class NavigationTests(unittest.TestCase):
             any("right/enter: confirm" in text for text in screen.drawn)
         )
 
+    def test_select_shortcut_returns_shortcut_name_and_draws_status(self):
+        screen = _Screen([ui.CTRL_A])
+
+        result = _run_widget(
+            screen,
+            lambda: ui.select(
+                [{"label": "One"}],
+                title="Test",
+                shortcuts=[
+                    {
+                        "key": ui.CTRL_A,
+                        "keys": "ctrl-a",
+                        "label": "add",
+                        "name": "add_custom",
+                    },
+                ],
+            ),
+        )
+
+        self.assertEqual(result["shortcut"], "add_custom")
+        self.assertEqual(result["index"], 0)
+        self.assertTrue(any("ctrl-a: add" in text for text in screen.drawn))
+
+    def test_select_shortcut_returns_current_selection_index(self):
+        screen = _Screen([ui.curses.KEY_DOWN, ui.CTRL_D])
+
+        result = _run_widget(
+            screen,
+            lambda: ui.select(
+                [{"label": "One"}, {"label": "Two"}],
+                title="Test",
+                shortcuts=[
+                    {
+                        "key": ui.CTRL_D,
+                        "keys": "ctrl-d",
+                        "label": "delete",
+                        "name": "delete_custom",
+                    },
+                ],
+            ),
+        )
+
+        self.assertEqual(result["shortcut"], "delete_custom")
+        self.assertEqual(result["index"], 1)
+
     def test_left_goes_back_and_home_labels_it_quit(self):
         screen = _Screen([ui.curses.KEY_LEFT])
 

@@ -8,6 +8,8 @@ HEADER_HEIGHT = 3
 ITEM_TOGGLE = 0
 ITEM_BUTTON = 1
 ITEM_NEXT = 2
+CTRL_A = 1
+CTRL_D = 4
 CTRL_Q = 17
 ENTER_KEYS = (curses.KEY_RIGHT, 10, 13)
 BACK_KEYS = (curses.KEY_LEFT, 27)
@@ -162,7 +164,7 @@ def toggle_items(labels, states=None):
 
 def choose(labels, **kwargs):
     result = select(button_items(labels), **kwargs)
-    return None if result is None else result["index"]
+    return None if result is None or "index" not in result else result["index"]
 
 
 def _safe_addstr(stdscr, y, x, text, attr=0):
@@ -263,6 +265,7 @@ def select(
     action_label="select",
     toggle_label="toggle",
     quit_label="quit",
+    shortcuts=None,
 ):
     """Unified select widget with optional fuzzy search.
 
@@ -274,14 +277,32 @@ def select(
         "global_override" (bool | None, fixed child state during global changes)
 
     action_label/back_label/toggle_label/quit_label customize status text.
+    shortcuts: optional list of dicts with "key", "keys", "label", and "name".
 
-    Returns dict{"index": int, "states": list[bool]} or None on ESC.
+    Returns dict{"index": int, "states": list[bool]}, dict{"shortcut": name,
+    "states": list[bool], "index": int | None}, or None on ESC.
     """
     if not items:
         return None
 
     states = [it.get("state", False) for it in items]
     types = [it.get("type", ITEM_BUTTON) for it in items]
+    shortcuts = shortcuts or []
+    shortcut_map = {shortcut["key"]: shortcut for shortcut in shortcuts}
+    shortcut_status = [
+        (shortcut.get("keys", ""), shortcut.get("label", ""))
+        for shortcut in shortcuts
+    ]
+
+    def _shortcut_result(key, selected_index=None):
+        shortcut = shortcut_map.get(key)
+        if not shortcut:
+            return None
+        return {
+            "shortcut": shortcut.get("name", shortcut.get("label")),
+            "index": selected_index,
+            "states": list(states),
+        }
 
     def _run(stdscr):
         nonlocal states
@@ -322,6 +343,7 @@ def select(
                 _draw_status(
                     stdscr,
                     [
+                        *shortcut_status,
                         ("← left/esc", back_label),
                         ("ctrl-q", quit_label),
                     ],
@@ -330,6 +352,9 @@ def select(
                     stdscr.move(3, min(w - 2, 10 + len(query)))
                 key = stdscr.getch()
                 _check_quit(key)
+                shortcut_result = _shortcut_result(key)
+                if shortcut_result is not None:
+                    return shortcut_result
                 if key == curses.KEY_MOUSE:
                     event = _mouse_event()
                     if event and _mouse_has(
@@ -403,6 +428,7 @@ def select(
             parts = []
             if has_toggle:
                 parts.append(("space", toggle_label))
+            parts.extend(shortcut_status)
             parts.append(("→ right/enter", action_label))
             parts.append(("← left/esc", back_label))
             parts.append(("ctrl-q", quit_label))
@@ -414,6 +440,10 @@ def select(
             # ── input ──
             key = stdscr.getch()
             _check_quit(key)
+            orig, _, _ = matches[sel]
+            shortcut_result = _shortcut_result(key, orig)
+            if shortcut_result is not None:
+                return shortcut_result
 
             if key == curses.KEY_MOUSE:
                 event = _mouse_event()
@@ -440,7 +470,6 @@ def select(
                 continue
 
             if key in ENTER_KEYS:
-                orig, _, _ = matches[sel]
                 return {"index": orig, "states": list(states)}
 
             elif key in BACK_KEYS:
